@@ -7,22 +7,22 @@ import requests
 
 
 class Laquare:
-    SQUARES_PATH = 'squares'
+    SQUARES_PATH = '../squares'
     X_RAPIDAPI_KEY = ''
     MAX_SIZE = 256
 
-    def __init__(self, size, state=None):
+    def __init__(self, size, seed=None):
         self.ls = None
         self.base = None
         self.size = size
-        self.state = state if state else random.randint(0, 256000)
-        self.x = self.state
+        self.seed = seed if seed else random.randint(0, 256000)
+        self.x = self.seed
 
         self.slices = math.ceil(self.size / Laquare.MAX_SIZE)
         self.n = math.ceil(self.size / self.slices)
         self.size = self.slices * self.n
 
-        self.file_name = '{path}/{size}_{state}.json'.format(size=self.size, state=self.state, path=self.SQUARES_PATH)
+        self.file_name = '{path}/{size}_{state}.json'.format(size=self.size, state=self.seed, path=self.SQUARES_PATH)
         if os.path.exists(self.file_name):
             self.from_file()
         else:
@@ -46,7 +46,10 @@ class Laquare:
 
     def create_base(self):
         Laquare.process('create_base', 0)
-        self.base = self.generate(self.slices, self.state)
+        if self.slices > 1:
+            self.base = self.generate(self.slices, self.seed)
+        else:
+            self.base = [[0]]
         Laquare.process('create_base', 100)
 
     def create_slices(self):
@@ -80,9 +83,9 @@ class Laquare:
 
     def print(self):
         for row in self.ls:
-            print()
             for n in row:
-                print(n, end='\t')
+                print('| {0:>{1}}'.format(n, len(str(self.size - 1))), end=' ')
+            print('|')
 
     @staticmethod
     def api_call(method, endpoint, querystring=None):
@@ -117,4 +120,4 @@ if __name__ == '__main__':
     print('API Key:', end='')
     Laquare.X_RAPIDAPI_KEY = input()
     l = Laquare(5, 101)
-    print(l.state)
+    print(l.seed)
