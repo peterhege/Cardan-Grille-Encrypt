@@ -15,6 +15,7 @@ class Laquare:
     SQUARES_PATH = '{root}/squares'.format(root=config.ROOT)
     X_RAPIDAPI_KEY = config.api_key()
     MAX_SIZE = config.api_max_size() if config.api_max_size() else 256
+    API_MAX_SIZE = 1024
 
     def __init__(self, size, seed=None):
         t = time.time()
@@ -30,10 +31,15 @@ class Laquare:
 
         h = hashlib.md5('{size}|{max}|{seed}'.format(max=self.MAX_SIZE, size=self.size, seed=self.seed).encode())
         self.file_name = os.path.realpath('{path}/{hash}.json'.format(path=self.SQUARES_PATH, hash=h.hexdigest()))
+
+        if self.MAX_SIZE > self.API_MAX_SIZE:
+            self.MAX_SIZE = self.API_MAX_SIZE
+
         if os.path.exists(self.file_name):
             self.from_file()
         else:
             self.from_api()
+
         Laquare.process('runtime', time.time() - t)
 
     def from_file(self):

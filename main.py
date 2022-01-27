@@ -3,6 +3,7 @@ import os
 import argparse
 import sys
 
+from cardan_grille.cardan_grille import CardanGrille
 from cardan_grille.laquare import Laquare
 from cardan_grille import config
 
@@ -64,6 +65,10 @@ def set_config(args):
         print('x-rapidapi-key={}'.format(config.api_key(args.key)))
     if args.apimax:
         print('api-max-size={}'.format(config.api_max_size(args.apimax)))
+    if args.cgmax:
+        print('encrypt-max-laquare={}'.format(config.encrypt_max_laquare(args.cgmax)))
+    if args.cgmin:
+        print('encrypt-min-laquare={}'.format(config.encrypt_min_laquare(args.cgmin)))
 
     config.save()
 
@@ -98,7 +103,9 @@ if __name__ == '__main__':
 
     conf = subparser.add_parser('config')
     conf.add_argument('--key', '-k', type=str, help='x-rapidapi-key: https://rapidapi.com/peterhege/api/laquare')
-    conf.add_argument('--apimax', '-m', type=int, help='Max size of a Latin Square by Laquare API')
+    conf.add_argument('--apimax', type=int, help='Max size of a Latin Square by Laquare API')
+    conf.add_argument('--cgmax', type=int, help='Max Latin Square size for Encrypt')
+    conf.add_argument('--cgmin', type=int, help='Min Latin Square size for Encrypt')
 
     args = parser.parse_args()
 
@@ -108,6 +115,13 @@ if __name__ == '__main__':
 
     if args.command == 'laquare':
         laquare_generate(args)
+        exit()
+
+    if args.command == 'encode' or args.command == 'decode':
+        cg = CardanGrille(args.input)
+        print(cg.ls.size)
+        print(cg.input_size)
+        print(cg.output_size)
         exit()
 
     Laquare.process = laquare_process

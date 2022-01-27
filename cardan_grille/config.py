@@ -10,7 +10,7 @@ if not os.path.exists(CONFIG_FILE):
 
 CONFIG = file_get_json_content(CONFIG_FILE)
 
-for key in ['x-rapidapi-key', 'api-max-size']:
+for key in ['x-rapidapi-key', 'api-max-size', 'encrypt-max-laquare', 'encrypt-min-laquare']:
     if key not in CONFIG:
         CONFIG[key] = None
 
@@ -21,6 +21,14 @@ def api_key(value=None):
 
 def api_max_size(value=None):
     return val('api-max-size', value)
+
+
+def encrypt_max_laquare(value=None):
+    return val('encrypt-max-laquare', value)
+
+
+def encrypt_min_laquare(value=None):
+    return val('encrypt-min-laquare', value)
 
 
 def val(key, value=None):
