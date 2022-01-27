@@ -2,16 +2,22 @@ import json
 import math
 import os
 import random
+import time
 
 import requests
+import hashlib
+
+from cardan_grille import config
+from cardan_grille.file_content import file_get_json_content, file_put_json_content
 
 
 class Laquare:
-    SQUARES_PATH = '../squares'
-    X_RAPIDAPI_KEY = ''
-    MAX_SIZE = 256
+    SQUARES_PATH = '{root}/squares'.format(root=config.ROOT)
+    X_RAPIDAPI_KEY = config.api_key()
+    MAX_SIZE = config.api_max_size() if config.api_max_size() else 256
 
     def __init__(self, size, seed=None):
+        t = time.time()
         self.ls = None
         self.base = None
         self.size = size
@@ -22,16 +28,17 @@ class Laquare:
         self.n = math.ceil(self.size / self.slices)
         self.size = self.slices * self.n
 
-        self.file_name = '{path}/{size}_{state}.json'.format(size=self.size, state=self.seed, path=self.SQUARES_PATH)
+        h = hashlib.md5('{size}|{max}|{seed}'.format(max=self.MAX_SIZE, size=self.size, seed=self.seed).encode())
+        self.file_name = os.path.realpath('{path}/{hash}.json'.format(path=self.SQUARES_PATH, hash=h.hexdigest()))
         if os.path.exists(self.file_name):
             self.from_file()
         else:
             self.from_api()
+        Laquare.process('runtime', time.time() - t)
 
     def from_file(self):
         Laquare.process('from_file', self.file_name)
-        with open(self.file_name) as json_file:
-            self.ls = json.load(json_file)
+        self.ls = file_get_json_content(self.file_name)
 
     def from_api(self):
         self.ls = [[-1 for i in range(self.size)] for j in range(self.size)]
@@ -41,15 +48,11 @@ class Laquare:
         if not os.path.isdir(Laquare.SQUARES_PATH):
             os.mkdir(Laquare.SQUARES_PATH)
 
-        with open(self.file_name, 'w') as out_file:
-            json.dump(self.ls, out_file)
+        file_put_json_content(self.file_name, self.ls)
 
     def create_base(self):
         Laquare.process('create_base', 0)
-        if self.slices > 1:
-            self.base = self.generate(self.slices, self.seed)
-        else:
-            self.base = [[0]]
+        self.base = self.generate(self.slices, self.seed)
         Laquare.process('create_base', 100)
 
     def create_slices(self):
@@ -57,8 +60,8 @@ class Laquare:
 
         for i in range(self.slices):
             for j in range(self.slices):
-                Laquare.process('create_slices', (i * self.slices + j + 1) * 100 / (self.slices * self.slices))
                 self.create_slice(i, j)
+                Laquare.process('create_slices', (i * self.slices + j + 1) * 100 / (self.slices * self.slices))
 
     def create_slice(self, i, j):
         increase = self.base[i][j] * self.n
@@ -72,9 +75,15 @@ class Laquare:
         self.x = int((1664525 * self.x + 1013904223) % math.pow(2, 32))
         return self.x
 
-    def generate(self, size, state):
-        Laquare.process('generate', [size, state])
-        response = Laquare.api_call('GET', 'generate', {"size": size, "state": state})
+    def generate(self, size, seed):
+        Laquare.process('generate', [size, seed])
+        if size == 1:
+            return [[0]]
+        elif size == 2:
+            r = seed % 2
+            return [[r, int(not r)], [int(not r), r]]
+
+        response = Laquare.api_call('GET', 'generate', {"size": size, "state": seed})
 
         if not response.ok:
             raise Exception(response.status_code, response.text)

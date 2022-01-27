@@ -1,22 +1,24 @@
-import json
 import math
 import os
 import argparse
+import sys
 
 from cardan_grille.laquare import Laquare
-
-CONFIG = {}
-
-if not os.path.exists('config.json'):
-    with open('config.json', 'w') as config:
-        json.dump({}, config)
-
-with open('config.json', 'r') as config:
-    CONFIG = json.load(config)
+from cardan_grille import config
 
 
 def laquare_process(method, progress):
-    print('Laquare.{method}: {progress}'.format(method=method, progress=progress))
+    if method == 'generate':
+        # print('Laquare.generate(size={}, seed={})'.format(progress[0], progress[1]))
+        return
+    elif method == 'from_file':
+        print('Laquare.from_file(): {file}'.format(file=progress))
+    elif method == 'runtime':
+        print('Laquare runtime: {:.2f}s'.format(progress))
+    else:
+        print('Laquare.{method}(): {progress:.2f}%'.format(method=method, progress=progress), end='\r')
+        if progress == 100:
+            print()
 
 
 def laquare_generate(args):
@@ -25,24 +27,53 @@ def laquare_generate(args):
 
     if args.max:
         Laquare.MAX_SIZE = args.max
-    elif 'laquare-max-size' in CONFIG:
-        Laquare.MAX_SIZE = CONFIG['laquare-max-size']
+
+    if args.progress:
+        Laquare.process = laquare_process
+
+    if not Laquare.X_RAPIDAPI_KEY:
+        print('RapidApi key not found for https://rapidapi.com/peterhege/api/laquare.')
+        print('Use this command: py main.py config --key=[Your RapidApi key]')
+        exit()
+
+    if not Laquare.api_key_is_valid():
+        print('Invalid RapidApi Key for https://rapidapi.com/peterhege/api/laquare:')
+        print(Laquare.X_RAPIDAPI_KEY)
+        print('Use this command: py main.py config --key=[Your Valid RapidApi key]')
+        exit()
 
     ls = Laquare(size, seed)
 
-    return ls
+    if args.print:
+        if args.print == 'table':
+            ls.print()
+        else:
+            print(ls.ls)
+
+    if args.regenerate:
+        print('py {file} laquare --size={size} --seed={seed} --max={max}'.format(
+            file=sys.argv[0],
+            size=ls.size,
+            seed=ls.seed,
+            max=ls.MAX_SIZE
+        ))
 
 
 def set_config(args):
     if args.key:
-        CONFIG['x-rapidapi-key'] = args.key
-        print('x-rapidapi-key={}'.format(args.key))
-    if args.max:
-        CONFIG['laquare-max-size'] = args.max
-        print('laquare-max-size={}'.format(args.max))
+        print('x-rapidapi-key={}'.format(config.api_key(args.key)))
+    if args.apimax:
+        print('api-max-size={}'.format(config.api_max_size(args.apimax)))
 
-    with open('config.json', 'w') as config:
-        json.dump(CONFIG, config)
+    config.save()
+
+
+def decode(args):
+    pass
+
+
+def encode(args):
+    pass
 
 
 if __name__ == '__main__':
@@ -61,11 +92,13 @@ if __name__ == '__main__':
     ls.add_argument('--size', '-s', type=int, help='Latin Square size', required=True)
     ls.add_argument('--seed', type=int, help='Latin Square random seed')
     ls.add_argument('--max', '-m', type=int, help='Max size of a Latin Square by Laquare API')
-    ls.add_argument('--pretty', action='store_true', help='Show result in table')
+    ls.add_argument('--print', help='Show result in table', choices=['table', 'list'])
+    ls.add_argument('--progress', action='store_true', help='Show generating progress')
+    ls.add_argument('--regenerate', action='store_true', help='Print command for regenerate')
 
-    config = subparser.add_parser('config')
-    config.add_argument('--key', '-k', type=str, help='x-rapidapi-key: https://rapidapi.com/peterhege/api/laquare')
-    config.add_argument('--max', '-m', type=int, help='Max size of a Latin Square by Laquare API')
+    conf = subparser.add_parser('config')
+    conf.add_argument('--key', '-k', type=str, help='x-rapidapi-key: https://rapidapi.com/peterhege/api/laquare')
+    conf.add_argument('--apimax', '-m', type=int, help='Max size of a Latin Square by Laquare API')
 
     args = parser.parse_args()
 
@@ -73,24 +106,11 @@ if __name__ == '__main__':
         set_config(args)
         exit()
 
-    if 'x-rapidapi-key' not in CONFIG:
-        print('RapidApi key not found. Use this command: py main.py config --key=[Your RapidApi key]')
-
-    Laquare.X_RAPIDAPI_KEY = CONFIG['x-rapidapi-key']
-    Laquare.process = laquare_process
-
-    if not Laquare.api_key_is_valid():
-        print('Invalid RapidApi Key: {}'.format(Laquare.X_RAPIDAPI_KEY))
-
     if args.command == 'laquare':
-        ls = laquare_generate(args)
-        if args.pretty:
-            ls.print()
-        else:
-            print(ls.ls)
+        laquare_generate(args)
         exit()
 
-    Laquare.X_RAPIDAPI_KEY = args.key
+    Laquare.process = laquare_process
 
     if args.mode == 'e':
         # File Size

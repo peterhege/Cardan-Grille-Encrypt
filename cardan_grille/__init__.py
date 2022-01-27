@@ -1,1 +1,1 @@
-__all__ = ['laquare']
+__all__ = ['laquare', 'file_content', 'config']
