@@ -29,7 +29,11 @@ class Laquare:
         self.n = math.ceil(self.size / self.slices)
         self.size = self.slices * self.n
 
-        h = hashlib.md5('{size}|{max}|{seed}'.format(max=self.MAX_SIZE, size=self.size, seed=self.seed).encode())
+        h = hashlib.md5(
+            '{size}|{max}|{api_max}|{seed}'.format(
+                api_max=self.API_MAX_SIZE,
+                max=self.MAX_SIZE, size=self.size, seed=self.seed).encode()
+        )
         self.file_name = os.path.realpath('{path}/{hash}.json'.format(path=self.SQUARES_PATH, hash=h.hexdigest()))
 
         if self.MAX_SIZE > self.API_MAX_SIZE:

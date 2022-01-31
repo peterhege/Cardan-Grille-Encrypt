@@ -1,4 +1,3 @@
-import math
 import os
 import argparse
 import sys
@@ -18,6 +17,15 @@ def laquare_process(method, progress):
         print('Laquare runtime: {:.2f}s'.format(progress))
     else:
         print('Laquare.{method}(): {progress:.2f}%'.format(method=method, progress=progress), end='\r')
+        if progress == 100:
+            print()
+
+
+def cardan_grille_process(method, progress):
+    if method == 'runtime':
+        print('CardanGrille runtime: {:.2f}s'.format(progress))
+    else:
+        print('CardanGrille.{method}(): {progress:.2f}%'.format(method=method, progress=progress), end='\r')
         if progress == 100:
             print()
 
@@ -73,27 +81,21 @@ def set_config(args):
     config.save()
 
 
-def decode(args):
-    pass
-
-
-def encode(args):
-    pass
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Cardan Grille encryption')
     subparser = parser.add_subparsers(dest='command')
 
-    encode = subparser.add_parser('encode')
-    encode.add_argument('--input', '-i', type=str, help='input file or string', required=True)
-    encode.add_argument('--output', '-o', type=str, help='output file')
+    for cmd in ['encode', 'decode']:
+        cmd_parser = subparser.add_parser(cmd, help='{} a file or input string'.format(cmd))
+        cmd_parser.add_argument('--input', '-i', type=str, help='input file or string', required=True)
+        cmd_parser.add_argument('--output', '-o', type=str, help='output file')
+        cmd_parser.add_argument('--progress', action='store_true', help='Show generating progress')
+        if cmd == 'decode':
+            cmd_parser.add_argument('--key', type=str, help='Decode key', required=True)
+        else:
+            cmd_parser.add_argument('--seed', type=int, help='Seed for random')
 
-    decode = subparser.add_parser('decode')
-    decode.add_argument('--input', '-i', type=str, help='input file or string', required=True)
-    decode.add_argument('--output', '-o', type=str, help='output file')
-
-    ls = subparser.add_parser('laquare')
+    ls = subparser.add_parser('laquare', help='Generate a Latin Square')
     ls.add_argument('--size', '-s', type=int, help='Latin Square size', required=True)
     ls.add_argument('--seed', type=int, help='Latin Square random seed')
     ls.add_argument('--max', '-m', type=int, help='Max size of a Latin Square by Laquare API')
@@ -101,11 +103,13 @@ if __name__ == '__main__':
     ls.add_argument('--progress', action='store_true', help='Show generating progress')
     ls.add_argument('--regenerate', action='store_true', help='Print command for regenerate')
 
-    conf = subparser.add_parser('config')
+    conf = subparser.add_parser('config', help='Set config')
     conf.add_argument('--key', '-k', type=str, help='x-rapidapi-key: https://rapidapi.com/peterhege/api/laquare')
     conf.add_argument('--apimax', type=int, help='Max size of a Latin Square by Laquare API')
     conf.add_argument('--cgmax', type=int, help='Max Latin Square size for Encrypt')
     conf.add_argument('--cgmin', type=int, help='Min Latin Square size for Encrypt')
+
+    clear = subparser.add_parser('clear', help='Remove all cache file')
 
     args = parser.parse_args()
 
@@ -118,29 +122,29 @@ if __name__ == '__main__':
         exit()
 
     if args.command == 'encode' or args.command == 'decode':
-        cg = CardanGrille(args.input)
-        print(cg.ls.size)
-        print(cg.input_size)
-        print(cg.output_size)
+        if args.progress:
+            Laquare.process = laquare_process
+            CardanGrille.process = cardan_grille_process
+
+        out = args.output if args.output else None
+        if out and os.path.exists(out):
+            continues = ''
+            while continues.lower() not in ['y', 'n', 'yes', 'no']:
+                continues = input('{} out file already exist. Continues? [y,n]: '.format(out))
+            if continues.lower() not in ['y', 'yes']:
+                exit()
+
+        if args.command == 'encode':
+            seed = args.seed if args.seed else None
+        else:
+            seed = None
+
+        cg = CardanGrille(args.input, out)
+        getattr(cg, args.command)(seed if args.command == 'encode' else args.key)
         exit()
 
-    Laquare.process = laquare_process
-
-    if args.mode == 'e':
-        # File Size
-        c = os.path.getsize(args.input)
-
-        # Latin Square Size By Content
-        n = math.ceil(c ** (1 / 2))
-        n = n if n > 10 else 10
-
-        # Generate Latin Square
-        Laquare.process = laquare_process
-        ls = Laquare(n)
-
-        # Fix size
-        n = ls.size
-
-        # Fill content
-        c_max = math.ceil(c / (n ** 2)) * n ** 2
-        buffer = [[0 for i in range(n)] for j in range(n)]
+    if args.command == 'clear':
+        files = os.listdir(Laquare.SQUARES_PATH)
+        for filename in files:
+            os.remove('{}/{}'.format(Laquare.SQUARES_PATH, filename))
+        print('{} file removed from {}'.format(len(files), Laquare.SQUARES_PATH))
