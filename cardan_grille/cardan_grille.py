@@ -1,6 +1,7 @@
 import math
 import os
 import random
+import re
 import time
 
 from cardan_grille import config
@@ -21,16 +22,32 @@ class CardanGrille:
         self.symbol = -1
         self.row = -1
         self.column = -1
+        self.trim_from = b'%cardan_grille_decode_trim_from%'
         self.buffer = None
         self.ls = None
-        self.trim = None
+        self.append = None
         if self.output is not None:
             with open(self.output, 'w') as file:
                 file.write('')
 
+    def create_append(self):
+        output_size = math.ceil(self.input_size / (self.ls.size ** 2)) * self.ls.size ** 2
+        CardanGrille.process('create_append', 0)
+        append_bytes = output_size - self.input_size
+        self.input_size += append_bytes
+        self.append = self.trim_from
+        if len(self.trim_from) <= append_bytes:
+            append_bytes = append_bytes - len(self.trim_from)
+        else:
+            append_bytes = self.ls.size ** 2 - (len(self.trim_from) - append_bytes)
+            self.input_size += self.ls.size ** 2
+        for i in range(append_bytes):
+            self.append += chr(random.randint(0, 127)).encode()
+            CardanGrille.process('create_append', (i + 1) * 100 / append_bytes)
+
     def decode(self, key):
         CardanGrille.process('decode', 0)
-        (size, ls_max, api_max, seed, self.trim) = tuple(map(NumberingSystem61.to_dec, key.split('Z')))
+        (size, ls_max, api_max, seed) = tuple(map(NumberingSystem61.to_dec, key.split('Z')))
         Laquare.MAX_SIZE = ls_max
         Laquare.API_MAX_SIZE = api_max
         self.ls = self.get_latin_square(seed, size)
@@ -39,13 +56,13 @@ class CardanGrille:
     def encode(self, seed):
         CardanGrille.process('encode', 0)
         self.ls = self.get_latin_square(seed)
+        self.create_append()
         self.run(self.encode_byte)
-        print('Key:', '{size}Z{max}Z{api_max}Z{seed}Z{trim}'.format(
+        print('Key:', '{size}Z{max}Z{api_max}Z{seed}'.format(
             size=NumberingSystem61.from_dec(self.ls.size),
             max=NumberingSystem61.from_dec(Laquare.MAX_SIZE),
             api_max=NumberingSystem61.from_dec(Laquare.API_MAX_SIZE),
-            seed=NumberingSystem61.from_dec(self.ls.seed),
-            trim=NumberingSystem61.from_dec(self.input_size)
+            seed=NumberingSystem61.from_dec(self.ls.seed)
         ))
 
     def decode_byte(self, i):
@@ -66,7 +83,7 @@ class CardanGrille:
     def store(self, one_byte, i, callback):
         if (i % self.ls.size ** 2) == 0:
             self.save()
-            self.buffer = [[chr(random.randint(0, 127)).encode() for k in range(self.ls.size)] for j in
+            self.buffer = [[b'' for k in range(self.ls.size)] for j in
                            range(self.ls.size)]
         callback(i)
         self.buffer[self.row][self.column] = one_byte
@@ -77,9 +94,8 @@ class CardanGrille:
         if self.output is None:
             self.output = []
         r = b''.join([b''.join(row) for row in self.buffer])
-        if last and self.trim:
-            trim = -1 * (self.input_size - self.trim)
-            r = r[:trim]
+        if last:
+            r = re.sub(self.trim_from + b'.*', b'', r, flags=re.S)
         if type(self.output) is list:
             self.output.append(r)
         else:
@@ -90,16 +106,25 @@ class CardanGrille:
     def run(self, callback):
         if self.is_file:
             with open(self.input, "rb") as in_file:
-                one_byte = in_file.read(1)
+                part_size = 1024 ** 2
+                part = in_file.read(part_size)
                 i = 0
-                while one_byte:
-                    self.store(one_byte, i, callback)
-                    (one_byte, i) = (in_file.read(1), i + 1)
+                while part:
+                    for j in range(len(part)):
+                        one_byte = bytes(part[j:j + 1])
+                        self.store(one_byte, i + j, callback)
+                    (part, i) = (in_file.read(part_size), i + j + 1)
         else:
             b = self.input.encode()
             for i in range(len(b)):
                 one_byte = bytes(b[i:i + 1])
                 self.store(one_byte, i, callback)
+
+        if self.append:
+            for j in range(len(self.append)):
+                one_byte = bytes(self.append[j:j + 1])
+                self.store(one_byte, i + j, callback)
+
         self.save(True)
 
         CardanGrille.process('runtime', time.time() - self.t)

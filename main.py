@@ -16,7 +16,7 @@ def laquare_process(method, progress):
     elif method == 'runtime':
         print('Laquare runtime: {:.2f}s'.format(progress))
     else:
-        print('Laquare.{method}(): {progress:.2f}%'.format(method=method, progress=progress), end='\r')
+        print('Laquare.{method}(): {progress:.4f}%'.format(method=method, progress=progress), end='\r')
         if progress == 100:
             print()
 
@@ -25,7 +25,7 @@ def cardan_grille_process(method, progress):
     if method == 'runtime':
         print('CardanGrille runtime: {:.2f}s'.format(progress))
     else:
-        print('CardanGrille.{method}(): {progress:.2f}%'.format(method=method, progress=progress), end='\r')
+        print('CardanGrille.{method}(): {progress:.4f}%'.format(method=method, progress=progress), end='\r')
         if progress == 100:
             print()
 

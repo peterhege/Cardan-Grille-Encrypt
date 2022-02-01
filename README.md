@@ -1,4 +1,4 @@
-# Cardan grille v1.0
+# Cardan grille v1.1-beta
 
 Encryption with latin squares and Cardan grille.
 
